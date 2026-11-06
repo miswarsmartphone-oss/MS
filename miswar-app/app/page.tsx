@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import { createClient } from "@/utils/supabase/client";
 type Product = {
   id: number;
   name: string;
@@ -36,27 +36,51 @@ export default function Home() {
     localStorage.setItem("miswar-products", JSON.stringify(data));
   }
 
-  function addProduct() {
-    if (!name || !price) {
-      alert("Isi nama barang dan harga jual");
-      return;
-    }
-    const item: Product = {
-      id: Date.now(),
-      name,
-      barcode,
-      stock: Number(stock),
-      price: Number(price),
-      cost: Number(cost || 0),
-    };
-    saveProducts([...products, item]);
-    setName("");
-    setBarcode("");
-    setStock("1");
-    setPrice("");
-    setCost("");
-    alert("Barang berhasil ditambahkan");
+async function addProduct() {
+  if (!name.trim() || !price) {
+    alert("Isi nama barang dan harga jual");
+    return;
   }
+
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+  .from("products")
+  .insert({
+    name: name.trim(),
+    barcode: barcode.trim() || null,
+    category: null,
+    stock: Number(stock),
+    purchase_price: Number(cost || 0),
+    selling_price: Number(price),
+  })
+  .select()
+  .single();
+
+  if (error) {
+    alert("Gagal menyimpan: " + error.message);
+    return;
+  }
+  const item: Product = {
+    id: Number(data.id),
+    name: data.name,
+    barcode: data.barcode || "",
+    stock: Number(data.stock),
+    price: Number(data.selling_price),
+    cost: Number(data.purchase_price),
+  };
+
+  setProducts((prev) => [...prev, item]);
+
+  setName("");
+  setBarcode("");
+  setStock("1");
+  setPrice("");
+  setCost("");
+
+  alert("Barang berhasil disimpan ke Supabase");
+}
+  
 
   function sell(item: Product) {
     if (item.stock < 1) {
